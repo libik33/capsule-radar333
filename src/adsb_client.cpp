@@ -139,6 +139,7 @@ bool AdsbClient::fetchFrom(const char* host, std::vector<Aircraft>& out) {
         if (_hideGround && onGround) continue;
         // optional filters (applied before the cap, so slots only go to matching aircraft)
         if (_minAltFt > 0.0f && (onGround || altFt < _minAltFt)) continue;
+        if (_maxAltFt > 0.0f && !onGround && altFt > _maxAltFt) continue;  // low-traffic/heli spotting
         if (_milOnly && (((a["dbFlags"] | 0u) & 0x1) == 0)) continue;
 
         const float d = (float)geo::haversineKm(_lat, _lon, lat, lon);

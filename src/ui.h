@@ -4,6 +4,7 @@
 void ui_create(void);            // build the whole UI on the active screen
 void ui_on_data_updated(void);   // refresh card/list/stats after radar::update()
 void ui_show_view(int idx);      // 0 = radar, 1 = list, 2 = stats, 3 = weather
+void ui_set_view_changed_cb(void (*cb)(int idx));  // fired on swipe — lets main remember the last view
 void ui_set_status(bool wifiUp, bool feedOk, int rssi, const char *clock);  // HUD: signal bars (count=RSSI, colour: red=down, amber=stale feed, white=ok) + clock
 void ui_set_battery(int pct, bool charging, bool present);  // top HUD battery indicator
 void ui_set_date(const char *date);  // top HUD date line (e.g. "08 Jun 2026")

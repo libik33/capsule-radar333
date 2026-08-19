@@ -540,6 +540,18 @@ void ui_set_weather_forecast(bool forecast) {
 }
 
 // Rebuild whichever of list/stats is currently on screen (called on poll and on swipe).
+static void (*s_viewChangedCb)(int) = nullptr;
+void ui_set_view_changed_cb(void (*cb)(int idx)) { s_viewChangedCb = cb; }
+
+static int active_view_index(void) {
+    if (!s_tv) return 0;
+    lv_obj_t *act = lv_tileview_get_tile_act(s_tv);
+    if (act == s_tileList)    return 1;
+    if (act == s_tileStats)   return 2;
+    if (act == s_tileWeather) return 3;
+    return 0;
+}
+
 static void refresh_active_tile(void) {
     if (!s_tv) return;
     lv_obj_t *act = lv_tileview_get_tile_act(s_tv);
@@ -723,7 +735,10 @@ void ui_create(void) {
     s_tileWeather = lv_tileview_add_tile(s_tv, 3, 0, LV_DIR_LEFT);
     // Rebuild the list/stats with the latest data the moment they slide into view
     // (between polls they'd otherwise show whatever was there when last visible).
-    lv_obj_add_event_cb(s_tv, [](lv_event_t *) { refresh_active_tile(); }, LV_EVENT_VALUE_CHANGED, nullptr);
+    lv_obj_add_event_cb(s_tv, [](lv_event_t *) {
+        refresh_active_tile();
+        if (s_viewChangedCb) s_viewChangedCb(active_view_index());   // let main remember the last view
+    }, LV_EVENT_VALUE_CHANGED, nullptr);
 
     // --- radar tile ---
     lv_obj_clear_flag(s_tileRadar, LV_OBJ_FLAG_SCROLLABLE);
