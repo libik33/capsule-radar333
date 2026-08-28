@@ -320,7 +320,7 @@ void ui_set_netinfo(const char *line) {
 }
 
 // GPS indicator. state: 0 = off / no module (hidden), 1 = acquiring (amber), 2 = fix (green).
-void ui_set_gps(int state, int sats) {
+void ui_set_gps(int state, int sats, float altM) {
     if (state <= 0) {                                 // hidden when GPS auto-location is off
         if (s_hudGps)   lv_label_set_text(s_hudGps, "");
         if (s_statsGps) lv_label_set_text(s_statsGps, "");
@@ -335,8 +335,14 @@ void ui_set_gps(int state, int sats) {
         lv_obj_set_style_text_color(s_hudGps, col, 0);
     }
     if (s_statsGps) {
-        char s[40];
-        if (fix) snprintf(s, sizeof(s), LV_SYMBOL_GPS " fix  " LV_SYMBOL_BULLET "  %d sats", sats);
+        char s[56];
+        if (fix && altM == altM) {                    // fix with a known GPS altitude
+            char altS[16];
+            if (s_units == 1) snprintf(altS, sizeof(altS), "%.0f m",  altM);
+            else              snprintf(altS, sizeof(altS), "%.0f ft", altM * 3.28084f);
+            snprintf(s, sizeof(s), LV_SYMBOL_GPS " fix  " LV_SYMBOL_BULLET "  %d sats  " LV_SYMBOL_BULLET "  %s", sats, altS);
+        }
+        else if (fix) snprintf(s, sizeof(s), LV_SYMBOL_GPS " fix  " LV_SYMBOL_BULLET "  %d sats", sats);
         else     snprintf(s, sizeof(s), LV_SYMBOL_GPS " acquiring  (%d sats)", sats);
         lv_label_set_text(s_statsGps, s);
         lv_obj_set_style_text_color(s_statsGps, col, 0);

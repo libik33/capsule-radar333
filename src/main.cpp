@@ -52,6 +52,7 @@ static bool                  g_muted  = false;                       // mute ale
 static int                   g_alertMode = 2;                        // 0=off 1=emergencies 2=new+emergencies (web/NVS)
 static float                 g_proximityKm = 0.0f;                   // proximity alert radius, km (0=off) (web/NVS)
 static uint32_t              g_idleDimMs = IDLE_DIM_MS;              // dim after this idle time (0 = never)
+static bool                  g_fdSleep = true;                       // face-down sleep (screen off) on/off (web/NVS)
 static bool                  g_showSweep = true;                     // rotating sweep line on/off (web/NVS)
 static int                   g_units = 0;                            // 0=Aviation 1=Metric 2=Imperial (web/NVS)
 static bool                  g_showAirports = true;                  // airport markers on/off (web/NVS)
@@ -252,7 +253,8 @@ static void loadSettings() {
     g_settings.homeLat = p.getDouble("homeLat", HOME_LAT_DEFAULT);
     g_settings.homeLon = p.getDouble("homeLon", HOME_LON_DEFAULT);
     g_settings.rangeKm = p.getFloat("rangeKm", RANGE_KM_DEFAULT);
-    g_brightnessDay    = p.getInt("bright", BRIGHTNESS_DEFAULT);
+    // floor of 5: a stored 0 would boot with the panel dark forever, looking like a dead board
+    g_brightnessDay    = constrain(p.getInt("bright", BRIGHTNESS_DEFAULT), 5, 255);
     g_volume           = p.getInt("vol", 60);
     g_muted            = p.getBool("mute", false);
     g_alertMode        = p.getInt("alertmode", 2);
@@ -261,6 +263,7 @@ static void loadSettings() {
     g_trailLen         = p.getInt("traillen", 2);
     g_maxAc            = p.getInt("maxac", 20);
     g_idleDimMs        = p.getUInt("idledim", IDLE_DIM_MS);
+    g_fdSleep          = p.getBool("fdsleep", true);
     g_units            = p.getInt("units", 0);
     g_tz               = p.getString("tz", TZ_STR);
     g_bigText          = p.getBool("bigtext", false);
@@ -529,6 +532,7 @@ static void handleRoot() {
         "<label>Brightness</label>"
         "<input type=range min=5 max=255 value='%d' oninput='b(this.value,0)' onchange='b(this.value,1)'>"
         "<label>Dim screen after</label><select onchange='d(this.value)'>%s</select>"
+        "<label><input type=checkbox class=ck %s onchange='fd(this.checked)'>Screen off when placed face-down</label>"
         "<label><input type=checkbox class=ck %s onchange='sw(this.checked)'>Show radar sweep</label>"
         "<label><input type=checkbox class=ck %s onchange='ap(this.checked)'>Show airports</label>"
         "<label><input type=checkbox class=ck %s onchange='hg(this.checked)'>Hide aircraft on the ground</label>"
@@ -565,6 +569,7 @@ static void handleRoot() {
         "function m(c){fetch('/vol?mute='+(c?1:0)+'&save=1')}"
         "function t(){fetch('/vol?test=1')}"
         "function d(v){fetch('/idle?v='+v+'&save=1')}"
+        "function fd(c){fetch('/fdsleep?v='+(c?1:0)+'&save=1')}"
         "function sw(c){fetch('/sweep?v='+(c?1:0)+'&save=1')}"
         "function ap(c){fetch('/airports?v='+(c?1:0)+'&save=1')}"
         "function hg(c){fetch('/ground?v='+(c?1:0)+'&save=1')}"
@@ -589,7 +594,7 @@ static void handleRoot() {
         "if(b>=0)e.selectedIndex=b;})();</script></body></html>",
         g_settings.homeLat, g_settings.homeLon, gpsRow.c_str(), ropts.c_str(), topts.c_str(),
         tzopts.c_str(),
-        g_brightnessDay, iopts.c_str(), g_showSweep ? "checked" : "",
+        g_brightnessDay, iopts.c_str(), g_fdSleep ? "checked" : "", g_showSweep ? "checked" : "",
         g_showAirports ? "checked" : "", g_hideGround ? "checked" : "", maopts.c_str(), mbopts.c_str(), g_milOnly ? "checked" : "",
         tlopts.c_str(), mxopts.c_str(), g_bigText ? "checked" : "", g_rotation, uopts.c_str(),
         g_volume, g_muted ? "checked" : "", aopts.c_str(), popts.c_str(),
@@ -647,7 +652,7 @@ static void handleWifi() {
 
 static void handleBright() {
     if (g_web.hasArg("v")) {
-        g_brightnessDay = constrain((int)g_web.arg("v").toInt(), 0, 255);
+        g_brightnessDay = constrain((int)g_web.arg("v").toInt(), 5, 255);  // floor 5: 0 looks like a dead board
         applyBrightness();
         if (g_web.hasArg("save")) {
             Preferences p;
@@ -831,6 +836,19 @@ static void handleAirports() {   // show/hide airport markers (live)
         }
     }
     g_web.send(200, "text/plain", "ok");
+}
+
+static void handleFdSleep() {   // face-down sleep (screen off when flipped over) on/off
+    if (g_web.hasArg("v")) {
+        g_fdSleep = g_web.arg("v").toInt() != 0;
+        if (g_web.hasArg("save")) {
+            Preferences p;
+            p.begin("capsuleradar", false);
+            p.putBool("fdsleep", g_fdSleep);
+            p.end();
+        }
+    }
+    g_web.send(200, "text/plain", "OK");
 }
 
 static void handleGround() {   // hide/show on-ground aircraft (applies from the next feed poll)
@@ -1050,6 +1068,7 @@ void setup() {
     g_web.on("/vol", handleVol);
     g_web.on("/alerts", handleAlerts);
     g_web.on("/idle", handleIdle);
+    g_web.on("/fdsleep", handleFdSleep);
     g_web.on("/sweep", handleSweep);
     g_web.on("/airports", handleAirports);
     g_web.on("/ground", handleGround);
@@ -1180,7 +1199,7 @@ void loop() {
         g_onBattery = bpresent && !battery_charging();
         // GPS HUD/Stats: 0 = off/no module (hidden), 1 = acquiring, 2 = fix
         const int gpsState = (!g_useGps || !gps_present()) ? 0 : (gps_has_fix() ? 2 : 1);
-        ui_set_gps(gpsState, gps_satellites());
+        ui_set_gps(gpsState, gps_satellites(), gps_altitude_m());
         // once NTP has a real fix, persist it to the RTC (core 1 only)
         if (!g_rtcSynced && time(nullptr) > 1700000000L) {
             time_t now = time(nullptr);
@@ -1211,7 +1230,10 @@ void loop() {
         const int fd = imu_facedown();              // 1 down, 0 not, -1 read error
         if (fd > 0)       { if (fdCount < 8) fdCount++; }
         else if (fd == 0) fdCount = 0;              // -1 (I2C hiccup): leave the counter as-is
-        const bool sleep = (fdCount >= 4);   // ~1.6 s face-down
+        // tap-to-wake: a touch while dark means the pose detection is wrong (tilted mount,
+        // drifted baseline) — wake up and adopt the current pose as the new resting one.
+        if (g_asleep && display::inactiveMs() < 400) { fdCount = 0; imu_rebaseline(); }
+        const bool sleep = g_fdSleep && (fdCount >= 4);   // ~1.6 s face-down (web toggle)
         const bool idle  = g_idleDimMs > 0 && display::inactiveMs() > g_idleDimMs;
         if (sleep != g_asleep || idle != g_idle) {
             g_asleep = sleep;
