@@ -49,7 +49,7 @@ bool touch_read(uint16_t *ox, uint16_t *oy) {
     if (points == 0 || points > 5) return false; // Žádný dotyk nebo neplatná data
 
     // Přečteme 4 bajty dat pro první dotykový bod (X_high, X_low, Y_high, Y_low)
-    uint8_t d[4];
+    uint8_t d[4] = {0};
     if (!cst_read_reg(CST820_REG_DATA, d, 4)) return false;
 
     // Dekódování souřadnic pro CST820 (12-bitové hodnoty rozdělené do bajtů)
