@@ -58,23 +58,23 @@ static const float RANGE_STEPS_KM[] = {10.0f, 20.0f, 30.0f, 50.0f, 100.0f};
 // ---------- Pin map ----------
 // VERIFIED (ESPHome def, cross-checked against the Waveshare board definition in
 // xiaozhi-esp32 and a working Arduino_GFX port for this exact panel):
-#define PIN_LCD_CS          12
-#define PIN_LCD_RST         39
-#define PIN_TP_INT          11
-#define PIN_TP_RST          40
-#define TP_MIRROR_X         true
-#define TP_MIRROR_Y         true
+#define PIN_LCD_CS          9
+#define PIN_LCD_RST         14
+#define PIN_TP_INT          5
+#define PIN_TP_RST          13
+#define TP_MIRROR_X         false
+#define TP_MIRROR_Y         false
 
 // CONFIRMED — CO5300 QSPI databus (LCD_CS=12, LCD_RST=39 above match too):
-#define PIN_LCD_SCLK        38             // QSPI PCLK
-#define PIN_LCD_D0          4
-#define PIN_LCD_D1          5
-#define PIN_LCD_D2          6
-#define PIN_LCD_D3          7
+#define PIN_LCD_SCLK        10             // QSPI PCLK
+#define PIN_LCD_D0          11
+#define PIN_LCD_D1          12
+#define PIN_LCD_D2          21
+#define PIN_LCD_D3          47
 
 // CONFIRMED — shared I2C bus (touch + IMU + RTC + PMIC + audio codec):
-#define PIN_I2C_SDA         15
-#define PIN_I2C_SCL         14
+#define PIN_I2C_SDA         6
+#define PIN_I2C_SCL         7
 
 // CONFIRMED — ES8311 codec over I2S (M4 alert ping). MCLK/DIN/PA included for completeness:
 #define PIN_I2S_MCLK        42
@@ -86,7 +86,7 @@ static const float RANGE_STEPS_KM[] = {10.0f, 20.0f, 30.0f, 50.0f, 100.0f};
 #define PIN_BOOT_BUTTON     0              // BOOT button (held on boot = captive portal, later)
 
 // I2C addresses:
-#define I2C_ADDR_TOUCH      0x5A           // CST9217 (corrected from vendor driver; was 0x15)
+#define I2C_ADDR_TOUCH      0x15           // CST820 standardní adresa
 #define I2C_ADDR_IMU        0x6B
 #define I2C_ADDR_RTC        0x51
 #define I2C_ADDR_PMIC       0x34
